@@ -24,6 +24,9 @@ export const PI_PHASE_META: Record<PiPhase, { label: string; color: string }> = 
 /** Ordered loop nodes rendered as the flat loop diagram (final is the exit). */
 export const PI_LOOP_NODES: PiPhase[] = ['user', 'reply', 'validate', 'result']
 
+/** Scroll-step order for the loop narrative: the four nodes plus the exit. */
+export const PI_LOOP_STEP_PHASES: PiPhase[] = [...PI_LOOP_NODES, 'final']
+
 export const PI_TRACE: PiFrame[] = [
   {
     phase: 'user',

@@ -1,10 +1,126 @@
 import FourTools from '../components/FourTools'
 import LayerStack from '../components/LayerStack'
 import PiExtensions from '../components/PiExtensions'
-import PiLoopReplay from '../components/PiLoopReplay'
-import { Callout, ChapterHero, Chip, Prose, SectionHeading } from '../components/ui'
+import PiLiveDemo from '../components/PiLiveDemo'
+import PiLoopStage from '../components/PiLoopStage'
+import { ScrollStep, StickyStage } from '../components/ScrollStage'
+import { Callout, ChapterHero, Chip, Figure, Prose, SectionHeading } from '../components/ui'
+import { PI_LOOP_STEP_PHASES, PI_PHASE_META } from '../data/piTrace'
 
 const ACCENT = 'var(--color-pi)'
+
+/* ------------------------------------------------------------------ */
+/* Scroll narrative: the four layers of the monorepo.                  */
+/* ------------------------------------------------------------------ */
+
+const LAYER_STEPS = [
+  {
+    name: 'pi-coding-agent',
+    title: '你直接使用的 CLI',
+    body: '顶层是你打交道的命令行：会话保存、重启/分支、指令文件、主题、命令模板、导出、非交互模式、用量统计。功能不少，但每一件都是「用户直接要的东西」。',
+  },
+  {
+    name: 'pi-tui',
+    title: '终端 UI 的本分',
+    body: '组件树、缓存渲染行、只重绘变化的行、缓冲更新防闪烁——终端 UI 该做的，一件不多。这一层不知道什么是 agent。',
+  },
+  {
+    name: 'pi-agent-core',
+    title: '那条极简循环住在这里',
+    body: '用户输入 → 模型回复 → 工具校验 → 工具结果，循环到模型不再要工具为止。外加两件小事：队列输入与附件、直连/代理执行。没有审批，没有隐藏状态。',
+  },
+  {
+    name: 'pi-ai',
+    title: '模型层',
+    body: '流式输出、schema 校验的工具调用、推理输出、跨 provider 上下文迁移、用量记账。换 provider 不换上下文，是这一层的职责。',
+  },
+]
+
+function LayersChapter() {
+  return (
+    <StickyStage
+      stage={(active) => (
+        <Figure caption="pi 的 monorepo 四层，随左侧滚动逐层高亮展开。每张职责清单都很短——这正是「极简」的证据。">
+          <LayerStack active={active} />
+        </Figure>
+      )}
+    >
+      {LAYER_STEPS.map((s, i) => (
+        <ScrollStep key={s.name} index={i}>
+          <code className="font-mono text-sm font-bold" style={{ color: ACCENT }}>
+            {s.name}
+          </code>
+          <h3 className="mt-1.5 text-xl font-bold tracking-tight text-ink">{s.title}</h3>
+          <p className="mt-2 text-[15px] leading-8 text-ink-soft">{s.body}</p>
+        </ScrollStep>
+      ))}
+    </StickyStage>
+  )
+}
+
+/* ------------------------------------------------------------------ */
+/* Scroll narrative: the minimal loop, phase by phase.                 */
+/* ------------------------------------------------------------------ */
+
+const LOOP_STEPS = [
+  {
+    phase: 'user',
+    title: '用户输入',
+    body: '任务直接进入会话上下文，没有预处理管线。pi-agent-core 支持队列输入：agent 还在跑，你也能继续追加消息。',
+  },
+  {
+    phase: 'reply',
+    title: '模型回复',
+    body: '模型流式输出文本，需要动手时输出结构化的 tool_call——schema 校验在 pi-ai 完成。模型只「说」，执行权在 harness 手里。',
+  },
+  {
+    phase: 'validate',
+    title: '工具校验',
+    body: 'pi-agent-core 校验参数：符合 schema 就执行。注意对照通用章——这里之后本该有一个审批关卡，pi 里它不存在。YOLO by default：信任被显式交给用户和模型，而不是藏在 UI 后面。',
+  },
+  {
+    phase: 'result',
+    title: '工具结果',
+    body: '结果作为 tool_result 写回会话，成为显式上下文的一部分。没有隐藏状态：你在屏幕上看到的历史，就是模型在下一次请求里看到的历史。',
+  },
+  {
+    phase: 'final',
+    title: '终止条件',
+    body: '模型不再要工具，循环就停。退出条件和通用循环一样朴素——整条循环身上什么都没多挂，这就是 pi 的「更瘦的 Agent Loop」。',
+  },
+] as const
+
+function LoopChapter() {
+  return (
+    <StickyStage
+      stage={(active) => (
+        <Figure caption="pi-agent-core 的循环随滚动逐阶段推进。注意 工具校验 之后那个被划掉的虚线节点——通用循环里的审批关卡，在这里从未被造出来。">
+          <PiLoopStage active={active} />
+        </Figure>
+      )}
+    >
+      {LOOP_STEPS.map((s, i) => {
+        const meta = PI_PHASE_META[s.phase as keyof typeof PI_PHASE_META]
+        return (
+          <ScrollStep key={s.phase} index={i}>
+            <span
+              className="inline-block w-fit rounded-full px-2.5 py-0.5 text-xs font-semibold text-white"
+              style={{ background: meta.color }}
+            >
+              阶段 {i + 1} / {PI_LOOP_STEP_PHASES.length} · {meta.label}
+            </span>
+            <h3 className="mt-2 text-xl font-bold tracking-tight text-ink">{s.title}</h3>
+            <p className="mt-2 text-[15px] leading-8 text-ink-soft">{s.body}</p>
+          </ScrollStep>
+        )
+      })}
+    </StickyStage>
+  )
+}
+
+/* ------------------------------------------------------------------ */
+/* Page.                                                               */
+/* ------------------------------------------------------------------ */
 
 export default function Pi() {
   return (
@@ -16,12 +132,33 @@ export default function Pi() {
         accent={ACCENT}
       />
 
+      {/* Live demo */}
+      <SectionHeading
+        id="demo"
+        kicker="01 · 先跑起来"
+        title="亲手跑一次 pi 的循环"
+        accent={ACCENT}
+        lead="下面是一个模拟的 pi agent。点「运行」：模型回复逐字流出，工具调用实时弹出，结果写回会话——右侧同步展示下一次模型请求实际收到的 messages。悬停任意事件，看它拼进了哪条 message。"
+      />
+      <div className="mx-auto max-w-6xl px-4">
+        <PiLiveDemo />
+      </div>
+      <Prose>
+        <Callout accent={ACCENT}>
+          <strong>试一试：</strong>① 关掉 <Chip color={ACCENT}>bash</Chip> 再运行——跑到「跑测试」那一步，
+          模型只能表示无法验证，循环提前结束；② 把最大循环拉到 1，看循环被强制截断；
+          ③ 悬停左侧的 tool_result，右侧会高亮它派生出的那条 <Chip color={ACCENT}>tool</Chip> message——
+          你看到的历史，就是模型看到的历史。
+        </Callout>
+      </Prose>
+
+      {/* Philosophy */}
       <SectionHeading
         id="philosophy"
-        kicker="01 · 哲学"
+        kicker="02 · 哲学"
         title="YOLO by default"
         accent={ACCENT}
-        lead="大多数 harness 在工具执行前设一道审批关卡；pi 默认没有。YOLO by default——不设隐藏审批，校验通过即执行。信任被显式地交给了用户和模型，而不是藏在一层 UI 后面。"
+        lead="大多数 harness 在工具执行前设一道审批关卡；pi 默认没有。校验通过即执行，不停下来问人。"
       />
       <Prose>
         <p>
@@ -32,36 +169,32 @@ export default function Pi() {
         </p>
         <Callout accent={ACCENT}>
           <strong>核心洞察：</strong>极简不是「功能少」，而是「每一行存在的代码都能说出理由」。
-          后面四个交互件会反复验证同一句话：用不到的机制，pi 干脆不造。
+          用不到的机制，pi 干脆不造。
         </Callout>
       </Prose>
 
+      {/* Scroll chapter A: layers */}
       <SectionHeading
         id="layers"
-        kicker="02 · 分层"
+        kicker="03 · 分层"
         title="四层 monorepo，每层都很薄"
         accent={ACCENT}
-        lead="pi 的代码分成四个包：顶层 pi-coding-agent 是你直接使用的 CLI；往下依次是终端 UI、agent 循环、模型层。依赖单向向下，没有循环，没有框架层。"
+        lead="pi 的代码分成四个包：顶层 pi-coding-agent 是你直接使用的 CLI；往下依次是终端 UI、agent 循环、模型层。往下滚动，逐层拆开看。"
       />
-      <div className="mx-auto max-w-5xl px-4">
-        <LayerStack />
+      <div className="mt-4">
+        <LayersChapter />
       </div>
-      <Prose>
-        <p>
-          注意每张职责清单都很短。pi-tui 做的最「重」的事也不过是缓存渲染行、只重绘变化的行、
-          缓冲更新防闪烁——终端 UI 的本分。整个栈的默认工具加起来只有四个。
-        </p>
-      </Prose>
 
+      {/* Scroll chapter B: the loop */}
       <SectionHeading
         id="loop"
-        kicker="03 · 循环"
+        kicker="04 · 循环"
         title="一条更瘦的 Agent Loop"
         accent={ACCENT}
-        lead="pi-agent-core 的循环和你在通用章看到的骨架同构：用户输入 → 模型回复 → 工具校验 → 工具结果，扁平重复，直到模型不再要工具。差别在于它身上什么都没多挂。"
+        lead="pi-agent-core 的循环和你在通用章看到的骨架同构：用户输入 → 模型回复 → 工具校验 → 工具结果，扁平重复，直到模型不再要工具。往下滚动，逐阶段推进——注意它身上什么都没多挂。"
       />
-      <div className="mx-auto max-w-5xl px-4">
-        <PiLoopReplay />
+      <div className="mt-4">
+        <LoopChapter />
       </div>
       <Prose>
         <p>
@@ -71,9 +204,10 @@ export default function Pi() {
         </p>
       </Prose>
 
+      {/* Tools */}
       <SectionHeading
         id="tools"
-        kicker="04 · 工具"
+        kicker="05 · 工具"
         title="默认工具只有四个"
         accent={ACCENT}
         lead="read、write、edit、bash——这就是 pi 默认交给模型的全部能力（另有可选的受限搜索与列目录）。少到可以逐个看完。"
@@ -90,9 +224,10 @@ export default function Pi() {
         </p>
       </Prose>
 
+      {/* Extensions */}
       <SectionHeading
         id="extensions"
-        kicker="05 · 扩展"
+        kicker="06 · 扩展"
         title="扩展不是 MCP：外部 CLI + markdown 模板"
         accent={ACCENT}
         lead="pi 的扩展不需要协议。新命令就是一个 markdown 模板文件；新能力就是一个能被 bash 调用的外部 CLI 工具。"

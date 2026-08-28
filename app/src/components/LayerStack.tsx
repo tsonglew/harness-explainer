@@ -1,5 +1,4 @@
-import { useState } from 'react'
-import { Figure } from './ui'
+import { AnimatePresence, motion } from 'framer-motion'
 
 const ACCENT = 'var(--color-pi)'
 
@@ -33,67 +32,70 @@ const LAYERS: Layer[] = [
   },
 ]
 
-export default function LayerStack() {
-  const [open, setOpen] = useState(2) // pi-agent-core expanded by default
+/**
+ * Controlled layer-stack diagram for the sticky stage: the parent
+ * (StickyStage scroll position) decides which layer is highlighted/expanded.
+ */
+export default function LayerStack({ active }: { active: number }) {
+  const idx = Math.min(Math.max(active, 0), LAYERS.length - 1)
 
   return (
-    <Figure caption="pi 的 monorepo 四层：顶层是你打交道的 CLI，底层是模型层，每层只依赖自己下面那一层。点击任意一层展开它的职责清单——注意每张清单都很短。">
-      <div className="px-5 py-5">
-        <div className="mb-3 flex items-center justify-between text-xs text-ink-soft">
-          <span>↑ 用户在这里</span>
-          <span>模型在这里 ↓</span>
-        </div>
-        <ol className="flex flex-col gap-1.5">
-          {LAYERS.map((layer, i) => {
-            const on = i === open
-            return (
-              <li key={layer.name}>
-                <button
-                  onClick={() => setOpen(on ? -1 : i)}
-                  className="flex w-full items-center gap-3 rounded-lg border px-4 py-2 text-left transition-all duration-200"
-                  style={{
-                    borderColor: on ? ACCENT : 'var(--color-line)',
-                    background: on ? `color-mix(in srgb, ${ACCENT} 7%, white)` : 'white',
-                  }}
-                >
-                  <code
-                    className="font-mono text-[13px] font-bold"
-                    style={{ color: on ? ACCENT : 'var(--color-ink)' }}
-                  >
-                    {layer.name}
-                  </code>
-                  <span className="ml-auto text-xs text-ink-soft">{layer.role}</span>
-                  <span
-                    className="text-xs transition-transform duration-200"
-                    style={{ color: ACCENT, transform: on ? 'rotate(90deg)' : undefined }}
-                  >
-                    ▸
-                  </span>
-                </button>
+    <div className="px-5 py-5">
+      <div className="mb-3 flex items-center justify-between text-xs text-ink-soft">
+        <span>↑ 用户在这里</span>
+        <span>模型在这里 ↓</span>
+      </div>
+      <ol className="flex flex-col gap-1.5">
+        {LAYERS.map((layer, i) => {
+          const on = i === idx
+          return (
+            <li key={layer.name}>
+              <div
+                className="flex w-full items-center gap-3 rounded-lg border px-4 py-2 transition-all duration-300"
+                style={{
+                  borderColor: on ? ACCENT : 'var(--color-line)',
+                  background: on ? `color-mix(in srgb, ${ACCENT} 7%, white)` : 'white',
+                  boxShadow: on ? `0 0 0 3px color-mix(in srgb, ${ACCENT} 15%, transparent)` : undefined,
+                  opacity: on ? 1 : 0.72,
+                }}
+              >
+                <code className="font-mono text-[13px] font-bold" style={{ color: on ? ACCENT : 'var(--color-ink)' }}>
+                  {layer.name}
+                </code>
+                <span className="ml-auto text-right text-xs text-ink-soft">{layer.role}</span>
+              </div>
+              <AnimatePresence initial={false}>
                 {on && (
-                  <ul className="mt-1.5 flex flex-wrap gap-1.5 rounded-lg border border-line bg-paper px-3 py-2.5">
+                  <motion.ul
+                    key="duties"
+                    initial={{ height: 0, opacity: 0 }}
+                    animate={{ height: 'auto', opacity: 1 }}
+                    exit={{ height: 0, opacity: 0 }}
+                    transition={{ duration: 0.3, ease: 'easeInOut' }}
+                    className="flex flex-wrap content-start gap-1.5 overflow-hidden rounded-lg"
+                  >
                     {layer.duties.map((d) => (
                       <li
                         key={d}
-                        className="rounded-full border border-line bg-white px-2.5 py-1 text-xs text-ink"
+                        className="mt-1.5 rounded-full border border-line bg-paper px-2.5 py-1 text-xs text-ink"
                       >
                         {d}
                       </li>
                     ))}
-                  </ul>
+                  </motion.ul>
                 )}
-              </li>
-            )
-          })}
-        </ol>
-        <p className="mt-4 text-xs leading-6 text-ink-soft">
-          四层就是全部。而且整个栈的默认工具只有四个：
-          <code className="mx-0.5 font-mono text-[12px] text-ink">read</code>/
-          <code className="mx-0.5 font-mono text-[12px] text-ink">write</code>/
-          <code className="mx-0.5 font-mono text-[12px] text-ink">edit</code>/
-          <code className="mx-0.5 font-mono text-[12px] text-ink">bash</code>。
-        </p>
-      </div>
-    </Figure>
+              </AnimatePresence>
+            </li>
+          )
+        })}
+      </ol>
+      <p className="mt-4 text-xs leading-6 text-ink-soft">
+        依赖单向向下，没有循环，没有框架层。整个栈的默认工具只有四个：
+        <code className="mx-0.5 font-mono text-[12px] text-ink">read</code>/
+        <code className="mx-0.5 font-mono text-[12px] text-ink">write</code>/
+        <code className="mx-0.5 font-mono text-[12px] text-ink">edit</code>/
+        <code className="mx-0.5 font-mono text-[12px] text-ink">bash</code>。
+      </p>
+    </div>
   )
 }
